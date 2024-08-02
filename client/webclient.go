@@ -5,7 +5,6 @@ import (
 	"net"
 	"os"
 	"strconv"
-	"syscall"
 
 	"golang.org/x/sys/unix"
 )
@@ -61,16 +60,14 @@ func main() {
 	check(err)
 
 	msg := fmt.Sprintf("GET / HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", host)
-	n, err := syscall.Write(socketFD, []byte(msg))
-	check(err)
-	fmt.Println(n)
+	check(unix.Send(socketFD, []byte(msg), 0))
 
 	response := make([]byte, 0)
 	total := 0
 
 	for {
 		chunk := make([]byte, 1024)
-		n, err := syscall.Read(socketFD, chunk)
+		n, _, err := unix.Recvfrom(socketFD, chunk, 0)
 		check(err)
 		response = append(response, chunk...)
 		total += n
