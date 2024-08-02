@@ -39,6 +39,7 @@ func main() {
 		fmt.Println("provide a url like example.com and optionally a port (default 80)")
 		return
 	}
+
 	host := os.Args[1]
 	port := 0
 	var err error
@@ -55,6 +56,8 @@ func main() {
 	socketFD, err := unix.Socket(unix.AF_INET, unix.SOCK_STREAM, 0)
 	check(err)
 	fmt.Println("socket: ", socketFD)
+
+	defer unix.Close(socketFD)
 
 	err = unix.Connect(socketFD, &unix.SockaddrInet4{Port: port, Addr: parseAddr(addrs[0])})
 	check(err)
@@ -77,7 +80,6 @@ func main() {
 	}
 
 	fmt.Printf("response:\n%s\n", response[:total])
-	defer check(unix.Close(socketFD))
 }
 
 // ip1, _ = strconv.ParseUint(ip[0], 10, 8)
