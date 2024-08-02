@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
-	"golang.org/x/sys/unix"
 	"net"
 	"os"
 	"strconv"
+	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 func check(err error) {
@@ -47,30 +49,38 @@ func main() {
 		port = 80
 	}
 
-	// var msg string
+	fmt.Println("running...")
 	addrs, err := net.LookupHost(host)
 	check(err)
 
 	socketFD, err := unix.Socket(unix.AF_INET, unix.SOCK_STREAM, 0)
 	check(err)
+	fmt.Println("socket: ", socketFD)
 
-	fmt.Println(1)
 	err = unix.Connect(socketFD, &unix.SockaddrInet4{Port: port, Addr: parseAddr(addrs[0])})
 	check(err)
 
-	fmt.Println(2)
-	check(unix.Close(socketFD))
+	msg := fmt.Sprintf("GET / HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", host)
+	n, err := syscall.Write(socketFD, []byte(msg))
+	check(err)
+	fmt.Println(n)
 
-	// addrs, err := net.LookupHost("www.example.com")
-	// check(err)
-	// fmt.Println(addrs)
-	// for _, addr := range addrs {
-	// 	names, err := net.LookupAddr(addr)
-	// 	if err != nil {
-	// 		continue
-	// 	}
-	// 	fmt.Println(names)
-	// }
+	response := make([]byte, 0)
+	total := 0
+
+	for {
+		chunk := make([]byte, 1024)
+		n, err := syscall.Read(socketFD, chunk)
+		check(err)
+		response = append(response, chunk...)
+		total += n
+		if n == 0 {
+			break
+		}
+	}
+
+	fmt.Printf("response:\n%s\n", response[:total])
+	defer check(unix.Close(socketFD))
 }
 
 // ip1, _ = strconv.ParseUint(ip[0], 10, 8)
